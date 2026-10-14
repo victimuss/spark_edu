@@ -1,6 +1,7 @@
 
 import { CloudinaryRequest, CloudinaryResponse, DeleteLessonBannerRequest, DeleteLessonBannerResponse, LessonCreate, LessonOut, PublishOut, SheetCreate, SheetOut, TagCreate, TagsOut } from "@/src/types/createlesson";
 import { api } from "../api";
+import { API_BASE_URL } from "../apiInstance";
 
 
 
@@ -67,7 +68,7 @@ export const LoadLessonBanner = async (data: CloudinaryRequest) => { // это �
         type: data.file.type || 'image/jpeg',
     } as any);
 
-    const url = `http://192.168.31.87:8000/lessons/upload-lesson-banner?lesson_id=${data.lesson_id}&sheet_id=${data.sheet_id}`;
+    const url = `${API_BASE_URL}/lessons/upload-lesson-banner?lesson_id=${data.lesson_id}&sheet_id=${data.sheet_id}`;
 
     try {
         const response = await fetch(url, {
