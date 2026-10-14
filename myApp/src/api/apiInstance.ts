@@ -2,8 +2,10 @@ import axios, { AxiosInstance, AxiosError } from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api } from "./api";
 
+export const API_BASE_URL = "https://api.spark-edu.ru";
+
 const apiInstance: AxiosInstance = axios.create({
-  baseURL: "https://api.spark-edu.ru",
+  baseURL: "http://192.168.31.87:8000",
   timeout: 0,
   headers: {
     "Content-Type": "application/json",

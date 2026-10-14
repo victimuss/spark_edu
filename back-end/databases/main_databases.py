@@ -2,10 +2,9 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 from core.config import settings
 from sqlalchemy.pool import NullPool
 
-# 1. Создаем движок, используя URL из нашего нового единого конфига
-# Теперь это будет PostgreSQL, который мы запустили в Docker
-fixed_url = settings.DATABASE_URL.replace("@db:", "@localhost:")
-engine = create_async_engine(fixed_url, echo=True, poolclass=NullPool)
+# The database runs in the `db` Docker service.  Keep the configured hostname
+# intact: inside the backend container `localhost` refers to the backend itself.
+engine = create_async_engine(settings.DATABASE_URL, echo=True, poolclass=NullPool)
 
 # 2. Создаем фабрику сессий
 async_session = async_sessionmaker(
