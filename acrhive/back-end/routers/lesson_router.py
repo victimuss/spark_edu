@@ -1,0 +1,255 @@
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
+from datetime import timezone, datetime
+from pydantic import BaseModel
+from typing import Optional
+from fastapi import APIRouter, UploadFile, File, Depends
+import requests
+import os
+import uuid
+import shutil
+from pydantic import BaseModel
+from auth.jwt_tokens import *
+from databases.main_databases import get_db
+from databases.schemas.schemas_lessons import *
+from databases.lesson_db.lessons_db_utils import *
+from databases.users_db.user_db_utils import get_last_lession, get_user_lessions
+from databases.lesson_db.lesson_db import Lesson
+from fastapi import APIRouter
+from auth.dependency import get_current_user
+from fastapi import status, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import update
+import json
+from cloud_storage.s3main import upload_image_to_cloud,delete_image_from_cloud
+import base64
+from core.logging import logger
+import tempfile
+from routers.tasks.media_tasks import upload_to_minio, delete_from_minio
+from routers.tasks.censore_tasks import checker_lesson
+from routers.tasks.ai_tasks import create_lesson
+from databases.schemas.schemas_lessons import AiTaskRequest
+
+
+router = APIRouter(prefix="/lessons")
+
+async def get_current_active_user(user=Depends(get_current_user)):
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return user
+
+
+@router.get("/get_lesson_by_id", response_model=PersonalLessonResponse)
+async def get_les_by_id(lesson_id: int, current_user=Depends(get_current_active_user)):
+    row = await get_lesson_by_id(lesson_id, current_user)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+
+    lesson, progress, is_liked, rank, is_registered, author_name, tags = row
+
+    return {
+            "lesson": lesson,         
+            "progress": progress if progress is not None else 0,           
+            "is_liked": is_liked is not None,
+            "is_registered": is_registered is not None,                 
+            "rank": rank if rank is not None else 0,
+            "author_name": author_name,
+            "tags": tags 
+}
+
+@router.post("/get_sheets_for_edit")
+async def get_she(lesson_id: int, current_user=Depends(get_current_active_user)):
+    return await get_sheets_for_edit(lesson_id, current_user)
+
+@router.post("/get_sheets")
+async def get_she(lesson_id: int, current_user=Depends(get_current_active_user)):
+    return await get_sheets(lesson_id, current_user)
+
+@router.get("/get_lesson_by_id_for_edit", response_model=PersonalLessonResponse)
+async def get_les_for_edit(lesson_id: int, current_user=Depends(get_current_active_user)):
+    row = await get_lesson_by_id_for_edit(lesson_id, current_user)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+
+    lesson, progress, is_liked, rank, is_registered, author_name, tags = row
+
+    return {
+            "lesson": lesson,         
+            "progress": progress if progress is not None else 0,           
+            "is_liked": is_liked is not None,
+            "is_registered": is_registered is not None,                 
+            "rank": rank if rank is not None else 0,
+            "author_name": author_name,
+            "tags": tags 
+}
+
+@router.post("/new_lesson")
+async def new_les(
+    lesson_data: LessonCreate, current_user=Depends(get_current_active_user)
+):
+    return await new_lesson(lesson_data, current_user)
+
+
+@router.post("/new_sheet")
+async def new_she(
+    sheet_data: SheetCreate, lesson_id: int,current_user=Depends(get_current_active_user),
+):
+    return await new_sheet(sheet_data, current_user, lesson_id)
+
+@router.post("/update_lesson")
+async def update_les(
+    lesson_id: int,
+    lesson_data: LessonUpdate,
+    current_user=Depends(get_current_active_user),
+):
+    return await edit_lesson(lesson_data=lesson_data, author_id=current_user, lesson_id=lesson_id)
+
+@router.post("/upload-lesson-banner")
+async def upload_banner(lesson_id: int, sheet_id: int, current_user=Depends(get_current_active_user), file: UploadFile = File(...)):
+    file_bytes = await file.read()
+    moderation_result = await media_checker(file_bytes, file.content_type)
+    res_data = json.loads(moderation_result)
+    if not res_data.get("safe"):
+        return {"error":'Модерация не пройдена', "reason": res_data.get("reason")}
+    file_ext = file.filename.split(".")[-1]
+    temp_file_name = f"{uuid.uuid4()}.{file_ext}"
+    temp_file_path = os.path.join(tempfile.gettempdir(), temp_file_name)
+
+    await file.seek(0)
+
+    with open(temp_file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    result = upload_to_minio.delay(temp_file_path, sheet_id)
+
+    return {
+        "status": "success", 
+        "message": "Изображение прошло модерацию и загружается",
+        "banner_url": None 
+    }
+
+@router.post("/delete-lesson-banner")
+async def delete_banner(sheet_id: int, current_user=Depends(get_current_active_user)):
+    try:
+        async with async_session() as session:
+            result = await session.execute(
+                select(LessonSheet.image_public_id)
+                .join(Lesson, Lesson.id == LessonSheet.content_id)
+                .where(LessonSheet.id == sheet_id)
+                .where(Lesson.author_id == current_user)
+            )
+            image_public_id = result.scalar_one_or_none()
+
+            if not image_public_id:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, 
+                    detail="Изображение не найдено или у вас нет прав на его удаление"
+                )
+            delete_from_minio.delay(image_public_id)
+            await session.execute(
+                update(LessonSheet)
+                .where(LessonSheet.id == sheet_id)
+                .values(picture_url=None, image_public_id=None)
+            )
+            await session.commit()
+            return {"status": "success", "message": "Image deleted successfully"}
+    except Exception as e:
+        logger.error(f"Ошибка S3: {e}, user_id: {current_user}")
+        return {"status": "error", "message": "Failed to delete image"}
+
+@router.post("/update_sheet")
+async def update_les(
+    sheet_id: int,
+    sheet_data: SheetUpdate,
+    current_user=Depends(get_current_active_user),
+):
+    return await edit_sheet(sheet_data=sheet_data, author_id=current_user, sheet_id=sheet_id)
+
+
+@router.delete("/delete_sheet")
+async def delete_sh(
+    sheet_id: int, lesson_id: int, current_user=Depends(get_current_active_user)
+):
+    return await delete_sheet(sheet_id, current_user, lesson_id)
+
+
+@router.delete("/delete_lesson")
+async def delete_les(lesson_id: int, current_user=Depends(get_current_active_user)):
+    return await delete_lesson(lesson_id, current_user)
+
+
+@router.post("/user_lessons")
+async def get_user_lessons(current_user=Depends(get_current_active_user)):
+    return await get_user_lessions(current_user)
+
+
+@router.post("/like_lesson")
+async def like_les(
+    lesson_id: int, like: bool, current_user=Depends(get_current_active_user)
+):
+    return await like_lection(lesson_id, like, current_user)
+
+
+@router.post("/reg_les")
+async def reg_les(
+    lesson_id: int,
+    reg: bool,
+    current_user=Depends(get_current_active_user),
+):
+    return await register_lesson(lesson_id, current_user, reg)
+
+
+@router.post("/rank_lesson")
+async def rank_les(
+    lesson_id: int, rank: int, current_user=Depends(get_current_active_user)
+):
+    return await rank_lesson(lesson_id, rank, current_user)
+
+
+@router.get("/popular_tags")
+async def popular_tages():
+    return await popular_tags()
+
+
+@router.post("/search_lessons", response_model=SearchLessonsResponse)
+async def api_search_lessons(search_req: SearchLessonsRequest):
+    return await search_lessons(
+        search_req.search, search_req.type, search_req.level, search_req.page, search_req.order
+    )
+@router.post('/add_tags')
+async def add_tags_API(tags: CreateTags, current_user=Depends(get_current_active_user)):
+    return await add_tags(tags, current_user)
+
+
+@router.post("/{lesson_id}/publish")
+async def publish_lesson(
+    lesson_id: int, 
+    current_user=Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    lesson = await db.get(Lesson, lesson_id)
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Урок не найден")
+
+    await db.execute(
+        update(Lesson)
+        .where(Lesson.id == lesson_id)
+        .values(status="DRAFT") 
+    )
+    await db.commit()
+
+    checker_lesson.delay(lesson_id)
+
+    return {
+        "status": "draft", 
+        "message": "Урок отправлен на модерацию. Это займет около минуты.",
+    }
+
+@router.post('/generate_lesson')
+async def generate_les(request: AiTaskRequest, current_user: int = Depends(get_current_active_user)):
+   create_lesson.delay(request.prompt, request.difficulty, request.lesson_type, current_user, request.language)
+   return {"status": "success", "message": "Урок в процессе генерации."} 
