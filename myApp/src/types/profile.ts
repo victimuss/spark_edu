@@ -59,19 +59,21 @@ export interface MakedLessonsResponce {
 }
 
 export interface EditUser {
-    user_name: string
-    description: string
-    tag: string
-    site: string
-    telegram: string
-    avatar: string
+    user_name: string;
+    description: string;
+    tag: string;
+    site: string;
+    telegram: string;
+    avatar: string;
+    is_teacher?: boolean;
 }
 
 export interface UserOut {
-    user_name: string
-    description: string
-    tag: string
-    site: string
-    telegram: string
-    avatar: string
+    user_name: string;
+    description: string;
+    tag: string;
+    site: string;
+    telegram: string;
+    avatar: string;
+    is_teacher?: boolean;
 }

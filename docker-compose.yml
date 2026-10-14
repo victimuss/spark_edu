@@ -1,5 +1,5 @@
 x-common-env: &common-env
-  DATABASE_URL: postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+  DATABASE_URL: postgresql+asyncpg://${DB_USER:-admin}:${DB_PASSWORD:-root}@db:5432/${DB_NAME:-my_project}
   REDIS_URL: redis://redis:6379/0
   CELERY_BROKER_URL: amqp://guest:guest@rabbitmq:5672//
   S3_ENDPOINT: http://minio:9000
@@ -11,30 +11,46 @@ services:
     container_name: spark_db
     restart: always
     environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME}
-    # Порт 5432 закрыт снаружи для безопасности
+      POSTGRES_USER: ${DB_USER:-admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-root}
+      POSTGRES_DB: ${DB_NAME:-my_project}
+    ports:
+      - "5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
+      - ./docker_init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-admin} -d ${DB_NAME:-my_project}"]
+      interval: 4s
+      timeout: 4s
+      retries: 10
 
   redis:
     image: redis:7-alpine
     container_name: spark_redis
     restart: always
-    # Порт 6379 закрыт снаружи для безопасности
+    ports:
+      - "6379:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 4s
+      timeout: 4s
+      retries: 10
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
     container_name: spark_mq
     restart: always
-    # Порт 5672 закрыт. Management UI (15672) тоже лучше закрывать на проде
+    ports:
+      - "5672:5672"
+      - "15672:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
 
   minio:
+    profiles: ["storage"]
     image: minio/minio
     container_name: spark_s3
     command: server /data --console-address ":9001"
@@ -56,18 +72,24 @@ services:
     command: sh -c "alembic upgrade head && gunicorn main:app -w 2 -k uvicorn.workers.UvicornWorker --timeout 120 --graceful-timeout 30 --bind 0.0.0.0:8000"
     ports:
       - "8000:8000"
+    volumes:
+      - ./back-end:/app
     env_file: ./back-end/.env
     environment:
       <<: *common-env
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   bot:
     build: ./back-end
     container_name: spark_bot
     restart: always
     command: python telegram_bot/bot_main.py
+    volumes:
+      - ./back-end:/app
     env_file: ./back-end/.env
     environment:
       <<: *common-env
@@ -79,6 +101,8 @@ services:
     container_name: spark_worker
     restart: always
     command: celery -A core.celery_app worker --loglevel=info
+    volumes:
+      - ./back-end:/app
     env_file: ./back-end/.env
     environment:
       <<: *common-env
@@ -91,6 +115,8 @@ services:
     container_name: spark_beat
     restart: always
     command: celery -A core.celery_app beat --loglevel=info
+    volumes:
+      - ./back-end:/app
     env_file: ./back-end/.env
     environment:
       <<: *common-env

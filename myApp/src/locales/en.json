@@ -368,6 +368,7 @@
   "navigation": {
     "tabs": {
       "home": "Home",
+      "train": "Train",
       "search": "Search",
       "myLessons": "Lessons",
       "profile": "Profile"

@@ -30,6 +30,7 @@ class LessonOut(BaseModel):
     id: int
     lesson_name: str
     author: Optional[str] = None
+    author_is_teacher: Optional[bool] = False
     description: Optional[str]
     type: str
     level: str
@@ -139,6 +140,7 @@ class PersonalLessonResponse(BaseModel):
     is_liked: bool
     is_registered: bool
     author_name: str
+    author_is_teacher: Optional[bool] = False
     tags: list[str] | None = None
     rank: float | None = None
 

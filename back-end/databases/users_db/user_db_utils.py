@@ -24,6 +24,7 @@ async def add_user(user_data: UserCreate):
             user_name=user_data.user_name,
             email=user_data.email,
             hashed_password=hash_password(user_data.password),
+            is_teacher=user_data.is_teacher if getattr(user_data, 'is_teacher', None) is not None else False
         )
         session.add(new_user)
         try:
@@ -218,15 +219,23 @@ async def edit_user(user_id: int, user_data: UserEdit):
         user = result.scalar_one_or_none()
         if user is None:
             raise HTTPException(status_code=404, detail="User not found")
-        user.user_name = user_data.user_name
-        user.description = user_data.description
-        user.tag = user_data.tag
-        user.site = user_data.site
-        user.telegram = user_data.telegram
-        user.avatar = user_data.avatar
+        if user_data.user_name is not None:
+            user.user_name = user_data.user_name
+        if user_data.description is not None:
+            user.description = user_data.description
+        if user_data.tag is not None:
+            user.tag = user_data.tag
+        if user_data.site is not None:
+            user.site = user_data.site
+        if user_data.telegram is not None:
+            user.telegram = user_data.telegram
+        if user_data.avatar is not None:
+            user.avatar = user_data.avatar
+        if user_data.is_teacher is not None:
+            user.is_teacher = user_data.is_teacher
         await session.commit()
         await session.refresh(user)
-        return {'user' : UserEdit(user_name=user.user_name, description=user.description, tag=user.tag, site=user.site, telegram=user.telegram, avatar=user.avatar)}
+        return {'user' : UserEdit(user_name=user.user_name, description=user.description, tag=user.tag, site=user.site, telegram=user.telegram, avatar=user.avatar, is_teacher=user.is_teacher)}
 
 
 async def get_users_lessons_for_edit(user_id):

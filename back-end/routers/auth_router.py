@@ -93,7 +93,8 @@ async def verify_challenge(
             "tag": current_user.tag,
             "avatar": current_user.avatar,
             "telegram": current_user.telegram,
-            "site": current_user.site
+            "site": current_user.site,
+            "is_teacher": current_user.is_teacher
         },
         "us_likes": us_likes.scalar() or 0,
         "us_lessons": us_lessons.scalar() or 0,

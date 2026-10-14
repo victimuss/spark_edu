@@ -17,7 +17,7 @@ from databases.lesson_db.lessons_db_utils import *
 from databases.users_db.user_db_utils import get_last_lession, get_user_lessions
 from databases.lesson_db.lesson_db import Lesson
 from fastapi import APIRouter
-from auth.dependency import get_current_user
+from auth.dependency import get_current_user, get_current_teacher_user
 from fastapi import status, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import update
@@ -43,6 +43,9 @@ async def get_current_active_user(user=Depends(get_current_user)):
         )
     return user
 
+async def get_current_active_teacher(teacher_id: int = Depends(get_current_teacher_user)) -> int:
+    return teacher_id
+
 
 @router.get("/get_lesson_by_id", response_model=PersonalLessonResponse)
 async def get_les_by_id(lesson_id: int, current_user=Depends(get_current_active_user)):
@@ -59,11 +62,12 @@ async def get_les_by_id(lesson_id: int, current_user=Depends(get_current_active_
             "is_registered": is_registered is not None,                 
             "rank": rank if rank is not None else 0,
             "author_name": author_name,
+            "author_is_teacher": getattr(lesson.author, "is_teacher", False) if hasattr(lesson, "author") and lesson.author else False,
             "tags": tags 
 }
 
 @router.post("/get_sheets_for_edit")
-async def get_she(lesson_id: int, current_user=Depends(get_current_active_user)):
+async def get_she(lesson_id: int, current_user=Depends(get_current_active_teacher)):
     return await get_sheets_for_edit(lesson_id, current_user)
 
 @router.post("/get_sheets")
@@ -71,7 +75,7 @@ async def get_she(lesson_id: int, current_user=Depends(get_current_active_user))
     return await get_sheets(lesson_id, current_user)
 
 @router.get("/get_lesson_by_id_for_edit", response_model=PersonalLessonResponse)
-async def get_les_for_edit(lesson_id: int, current_user=Depends(get_current_active_user)):
+async def get_les_for_edit(lesson_id: int, current_user=Depends(get_current_active_teacher)):
     row = await get_lesson_by_id_for_edit(lesson_id, current_user)
     if row is None:
         raise HTTPException(status_code=404, detail="Lesson not found")
@@ -85,19 +89,20 @@ async def get_les_for_edit(lesson_id: int, current_user=Depends(get_current_acti
             "is_registered": is_registered is not None,                 
             "rank": rank if rank is not None else 0,
             "author_name": author_name,
+            "author_is_teacher": getattr(lesson.author, "is_teacher", False) if hasattr(lesson, "author") and lesson.author else False,
             "tags": tags 
 }
 
 @router.post("/new_lesson")
 async def new_les(
-    lesson_data: LessonCreate, current_user=Depends(get_current_active_user)
+    lesson_data: LessonCreate, current_user=Depends(get_current_active_teacher)
 ):
     return await new_lesson(lesson_data, current_user)
 
 
 @router.post("/new_sheet")
 async def new_she(
-    sheet_data: SheetCreate, lesson_id: int,current_user=Depends(get_current_active_user),
+    sheet_data: SheetCreate, lesson_id: int,current_user=Depends(get_current_active_teacher),
 ):
     return await new_sheet(sheet_data, current_user, lesson_id)
 
@@ -105,12 +110,12 @@ async def new_she(
 async def update_les(
     lesson_id: int,
     lesson_data: LessonUpdate,
-    current_user=Depends(get_current_active_user),
+    current_user=Depends(get_current_active_teacher),
 ):
     return await edit_lesson(lesson_data=lesson_data, author_id=current_user, lesson_id=lesson_id)
 
 @router.post("/upload-lesson-banner")
-async def upload_banner(lesson_id: int, sheet_id: int, current_user=Depends(get_current_active_user), file: UploadFile = File(...)):
+async def upload_banner(lesson_id: int, sheet_id: int, current_user=Depends(get_current_active_teacher), file: UploadFile = File(...)):
     file_bytes = await file.read()
     moderation_result = await media_checker(file_bytes, file.content_type)
     res_data = json.loads(moderation_result)
@@ -133,7 +138,7 @@ async def upload_banner(lesson_id: int, sheet_id: int, current_user=Depends(get_
     }
 
 @router.post("/delete-lesson-banner")
-async def delete_banner(sheet_id: int, current_user=Depends(get_current_active_user)):
+async def delete_banner(sheet_id: int, current_user=Depends(get_current_active_teacher)):
     try:
         async with async_session() as session:
             result = await session.execute(
@@ -165,20 +170,20 @@ async def delete_banner(sheet_id: int, current_user=Depends(get_current_active_u
 async def update_les(
     sheet_id: int,
     sheet_data: SheetUpdate,
-    current_user=Depends(get_current_active_user),
+    current_user=Depends(get_current_active_teacher),
 ):
     return await edit_sheet(sheet_data=sheet_data, author_id=current_user, sheet_id=sheet_id)
 
 
 @router.delete("/delete_sheet")
 async def delete_sh(
-    sheet_id: int, lesson_id: int, current_user=Depends(get_current_active_user)
+    sheet_id: int, lesson_id: int, current_user=Depends(get_current_active_teacher)
 ):
     return await delete_sheet(sheet_id, current_user, lesson_id)
 
 
 @router.delete("/delete_lesson")
-async def delete_les(lesson_id: int, current_user=Depends(get_current_active_user)):
+async def delete_les(lesson_id: int, current_user=Depends(get_current_active_teacher)):
     return await delete_lesson(lesson_id, current_user)
 
 
@@ -221,14 +226,14 @@ async def api_search_lessons(search_req: SearchLessonsRequest):
         search_req.search, search_req.type, search_req.level, search_req.page, search_req.order
     )
 @router.post('/add_tags')
-async def add_tags_API(tags: CreateTags, current_user=Depends(get_current_active_user)):
+async def add_tags_API(tags: CreateTags, current_user=Depends(get_current_active_teacher)):
     return await add_tags(tags, current_user)
 
 
 @router.post("/{lesson_id}/publish")
 async def publish_lesson(
     lesson_id: int, 
-    current_user=Depends(get_current_active_user),
+    current_user=Depends(get_current_active_teacher),
     db: AsyncSession = Depends(get_db)
 ):
     lesson = await db.get(Lesson, lesson_id)
@@ -250,6 +255,6 @@ async def publish_lesson(
     }
 
 @router.post('/generate_lesson')
-async def generate_les(request: AiTaskRequest, current_user: int = Depends(get_current_active_user)):
+async def generate_les(request: AiTaskRequest, current_user: int = Depends(get_current_active_teacher)):
    create_lesson.delay(request.prompt, request.difficulty, request.lesson_type, current_user, request.language)
    return {"status": "success", "message": "Урок в процессе генерации."} 

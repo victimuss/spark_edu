@@ -20,6 +20,8 @@ class User(Base):
     description: Mapped[str] = mapped_column(String(255), default='Нет описания', nullable=True)
     tag: Mapped[str] = mapped_column(String(255),unique=True, nullable=False, default=generate_unique_tag)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    is_teacher: Mapped[bool] = mapped_column(Boolean, default=False)
+    
 
     public_key: Mapped[str] = mapped_column(String, unique=True, nullable=True)
     

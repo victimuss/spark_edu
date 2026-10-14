@@ -1,12 +1,19 @@
 import axios, { AxiosInstance, AxiosError } from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Platform } from "react-native";
 import { api } from "./api";
 
-export const API_BASE_URL = "https://api.spark-edu.ru";
+// Локальный бэкенд: для эмулятора Android 10.0.2.2 (или localhost с adb reverse)
+const LOCAL_HOST = Platform.OS === "android" ? "10.0.2.2" : "localhost";
+export const LOCAL_API_URL = `http://${LOCAL_HOST}:8000`;
+export const PROD_API_URL = "https://api.spark-edu.ru";
+
+// Подключаем локальный бэкенд
+export const API_BASE_URL = LOCAL_API_URL;
 
 const apiInstance: AxiosInstance = axios.create({
-  baseURL: "http://192.168.31.87:8000",
-  timeout: 0,
+  baseURL: API_BASE_URL,
+  timeout: 10000,
   headers: {
     "Content-Type": "application/json",
   },

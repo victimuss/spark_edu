@@ -19,12 +19,13 @@ export const linking = {
       NewLessonScreen: 'lesson/new',
       NewSheetScreen: 'lesson/:lessonId/sheet/new',
 
+      Search: 'search',
       MainTabs: {
         path: '',
         initialRouteName: 'Home',
         screens: {
           Home: 'home',
-          Search: 'search',
+          Train: 'train',
           MyLessons: 'my-lessons',
           Profile: 'profile',
         },

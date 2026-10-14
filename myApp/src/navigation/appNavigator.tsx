@@ -13,11 +13,13 @@ import { VoiceInputScreen } from '../screens/AI/VoiceInputScreen';
 
 export type RootStackParamList = {
   MainTabs: undefined;
+  Search?: { search?: string };
   NewLessonScreen: { isEdit?: boolean; editLessonId?: number } | undefined;
   NewSheetScreen: { lessonId: number; isEdit?: boolean } | undefined;
   LessonMainScreen: { lessonId: number };
   LessonPage: { lessonId: number };
   NewSheetAIScreen: undefined;
+  TrainSessionScreen?: { lectureId?: string; lectureTitle?: string };
 };
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -30,6 +32,7 @@ export const AppNavigator = () => {
       <Stack.Screen name="LessonMainScreen" component={LessonMainScreen} />
       <Stack.Screen name="LessonPage" component={SheetScreen} />
       <Stack.Screen name="NewSheetAIScreen" component={VoiceInputScreen} />
+      <Stack.Screen name="TrainSessionScreen" component={require('../features/train/screens/TrainSessionScreen').default || require('../features/train/screens/TrainSessionScreen').TrainSessionScreen} />
     </Stack.Navigator>
   );
 };

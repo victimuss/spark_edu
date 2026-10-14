@@ -368,6 +368,7 @@
   "navigation": {
     "tabs": {
       "home": "Главная",
+      "train": "Train",
       "search": "Поиск",
       "myLessons": "Уроки",
       "profile": "Профиль"

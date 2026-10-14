@@ -11,7 +11,7 @@ from databases.schemas.schemas_user import *
 from databases.users_db.user_db_utils import add_skill, add_user, authenticate_user, edit_skill, get_last_lession, get_maked_lessons, get_user_learn_lessons, get_user_lessions, get_users_skills , edit_user, set_progress, get_users_lessons_for_edit
 from databases.users_db.users_db import User
 from fastapi import APIRouter
-from auth.dependency import get_current_user
+from auth.dependency import get_current_user, get_current_teacher_user
 from fastapi import status, Depends
 from databases.schemas.schemas_lessons import MyLessonsResponse
 from core.logging import logger
@@ -24,6 +24,9 @@ async def get_current_active_user(user=Depends(get_current_user)):
             headers={"WWW-Authenticate": "Bearer"},
         )
     return user
+
+async def get_current_active_teacher(teacher_id: int = Depends(get_current_teacher_user)) -> int:
+    return teacher_id
 router = APIRouter(prefix="/users")
  
 @router.post('/signup', response_model=UserOut) 
@@ -51,12 +54,18 @@ async def login_user(login_data: LoginUser):
         "refresh_token": refresh_token,
         "token_type": "bearer",
         "user": {
+                "id": user['user'].id,
                 "user_name": user['user'].user_name,
+                "email": user['user'].email,
                 'description': user['user'].description,
                 'tag': user['user'].tag,   
                 "created_at": user['user'].created_at,
                 "updated_at": user['user'].updated_at,      
                 "is_active": user['user'].is_active,
+                "is_teacher": user['user'].is_teacher,
+                "avatar": user['user'].avatar,
+                "site": user['user'].site,
+                "telegram": user['user'].telegram,
         }, 
         'us_likes': user['us_likes'],
         'us_lessons': user['us_lessons'],
@@ -130,5 +139,5 @@ async def set_pro(progress: int, lesson_id: int, current_user =  Depends(get_cur
     return await set_progress(current_user, progress, lesson_id)
 
 @router.get('/user_lessons_for_edit', response_model=MyLessonsResponse)
-async def get_user_lessons_for_edit_a(current_user =  Depends(get_current_active_user)):
+async def get_user_lessons_for_edit_a(current_user = Depends(get_current_active_teacher)):
     return await get_users_lessons_for_edit(current_user)

@@ -34,7 +34,7 @@ async function generateMockKey(): Promise<{
     pubkey: string
 }> {
     const { mnemonic, publicKey } = await CryptoService.generateAndSaveIdentity();
-    return { mnemonic, publicKey }
+    return { mnemonic, pubkey: publicKey }
 }
 
 
@@ -143,6 +143,7 @@ export default function ZkpAuthScreen() {
                 {/* ── Таб-переключатель ─────────────────────────────────── */}
                 <View style={styles.tabsWrapper}>
                     <MotiView
+                        pointerEvents="none"
                         animate={{
                             translateX: activeTab === 'register' ? 0 : (SCREEN_WIDTH - 2 * SPACING.lg - 2 * SPACING.xs) / 2,
                         }}
@@ -236,8 +237,12 @@ export default function ZkpAuthScreen() {
                                 </View>
 
                                 <Pressable
-                                    onPress={() => {
-                                        loginWithCrypto()
+                                    onPress={async () => {
+                                        try {
+                                            await loginWithCrypto(generatedKey);
+                                        } catch (error: any) {
+                                            Alert.alert(t('screens.cryptoAuth.errorTitle') || 'Ошибка', error?.message || String(error));
+                                        }
                                     }}
                                 >
                                     {({ pressed }) => (

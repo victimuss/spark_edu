@@ -1,21 +1,23 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { View, Text, Pressable, SafeAreaView } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 import { tabBarStyles as tabBarStylesFn } from '../styles/TabStyles';
 import { MainScreen } from './auth/main/MainScreen';
 import { ProfileScreen } from './auth/main/ProfileScreen';
-import { BookIcon, HomeIcon, SearchIcon, UserIcon } from '../SVG/TabSVG';
+import { BookIcon, HomeIcon, TrainIcon, UserIcon } from '../SVG/TabSVG';
 import { SearchScreen } from './auth/main/SearchScreen';
+import { TrainScreen } from '../features/train/screens/TrainScreen';
 import { NewLessonScreen } from './auth/main/NewLesson/NewLessonScreen';
 import MyLessonsScreen from './auth/main/MyLessonsScreen';
 import { useTranslation } from 'react-i18next';
 import { useStyles } from '../hooks/useStyles';
 import { useThemeStore } from '../context/useThemeStore';
+import { AuthContext } from '../context/AuthContext';
 
 export type BottomTabParamList = {
     Home: undefined;
-    Search: undefined;
+    Train: undefined;
     Create: undefined;
     MyLessons: undefined;
     Profile: undefined;
@@ -27,6 +29,9 @@ export default function TabNavigator(): React.JSX.Element {
     const tabBarStyles = useStyles(tabBarStylesFn);
     const { colors } = useThemeStore(s => s.theme);
     const { t } = useTranslation();
+    const { user } = useContext(AuthContext);
+    const isTeacher = Boolean(user?.is_teacher);
+
     return (
         <Tab.Navigator
             screenOptions={{
@@ -58,20 +63,20 @@ export default function TabNavigator(): React.JSX.Element {
             />
 
             <Tab.Screen
-                name='Search'
-                component={SearchScreen}
+                name='Train'
+                component={TrainScreen}
                 options={{
                     tabBarIcon: ({ focused }) => (
                         <View style={tabBarStyles.tab}>
                             <View style={focused ? tabBarStyles.iconWrapperActive : tabBarStyles.iconWrapper}>
-                                <SearchIcon
+                                <TrainIcon
                                     size={24}
                                     color={focused ? colors.primary : colors.textSecondary}
                                 />
                             </View>
                             <Text numberOfLines={1}
                                 style={focused ? tabBarStyles.tabLabelActive : tabBarStyles.tabLabel}>
-                                {t('navigation.tabs.search')}
+                                {t('navigation.tabs.train', 'Тренажёр')}
                             </Text>
                             <View style={focused ? tabBarStyles.activeDot : tabBarStyles.activeDotPlaceholder} />
                         </View>
@@ -79,32 +84,34 @@ export default function TabNavigator(): React.JSX.Element {
                 }}
             />
 
-            <Tab.Screen
-                name="Create"
-                component={NewLessonScreen}
-                options={{
-                    tabBarButton: ({ style, ...restProps }: any) => (
-                        <View style={tabBarStyles.fabWrapper}>
-                            <Pressable
-                                {...restProps}
-                                style={({ pressed }) => [
-                                    tabBarStyles.fabButton,
-                                    pressed && tabBarStyles.fabButtonPressed
-                                ]}
-                            >
-                                <Text style={tabBarStyles.fabIcon}>+</Text>
-                            </Pressable>
-                        </View>
-                    ),
-                }}
-                listeners={({ navigation }) => ({
-                    tabPress: (e) => {
-                        e.preventDefault();
-                        navigation.navigate('NewLessonScreen');
-                        console.log('Открываем меню создания урока!');
-                    },
-                })}
-            />
+            {isTeacher && (
+                <Tab.Screen
+                    name="Create"
+                    component={NewLessonScreen}
+                    options={{
+                        tabBarButton: ({ style, ...restProps }: any) => (
+                            <View style={tabBarStyles.fabWrapper}>
+                                <Pressable
+                                    {...restProps}
+                                    style={({ pressed }) => [
+                                        tabBarStyles.fabButton,
+                                        pressed && tabBarStyles.fabButtonPressed
+                                    ]}
+                                >
+                                    <Text style={tabBarStyles.fabIcon}>+</Text>
+                                </Pressable>
+                            </View>
+                        ),
+                    }}
+                    listeners={({ navigation }) => ({
+                        tabPress: (e) => {
+                            e.preventDefault();
+                            navigation.navigate('NewLessonScreen');
+                            console.log('Открываем меню создания урока!');
+                        },
+                    })}
+                />
+            )}
 
             <Tab.Screen
                 name='MyLessons'

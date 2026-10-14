@@ -8,12 +8,13 @@ export interface AuthResponse {
         telegram: string;
         site: string;
         user_name: string;
-        description: string
-        tag: string
-    }
-    us_likes: number
-    us_lessons: number
-    us_learn_lessons: number
+        description: string;
+        tag: string;
+        is_teacher?: boolean;
+    };
+    us_likes: number;
+    us_lessons: number;
+    us_learn_lessons: number;
 }
 
 export interface RefreshResponse {
@@ -21,9 +22,10 @@ export interface RefreshResponse {
 }
 
 export interface RegisRequest {
-    user_name: string,
-    email: string,
-    password: string
+    user_name: string;
+    email: string;
+    password: string;
+    is_teacher?: boolean;
 }
 
 export interface RegisResponse {
@@ -31,19 +33,19 @@ export interface RegisResponse {
 }
 
 export interface CryptoRequestChallenge {
-    user_id?: number,
-    public_key?: string
+    user_id?: number;
+    public_key?: string;
 }
 
 export interface CryptoResponseChallenge {
-    nonce: string
+    nonce: string;
 }
 
 export interface CryptoRequestVerify {
-    user_id?: number,
-    public_key?: string,
-    nonce?: string,
-    signature?: string
+    user_id?: number;
+    public_key?: string;
+    nonce?: string;
+    signature?: string;
 }
 
 export interface CryptoResponseVerify {
@@ -55,11 +57,11 @@ export interface CryptoResponseVerify {
         telegram: string;
         site: string;
         user_name: string;
-        description: string
-        tag: string
-    }
-    us_likes: number
-    us_lessons: number
-    us_learn_lessons: number
-
+        description: string;
+        tag: string;
+        is_teacher?: boolean;
+    };
+    us_likes: number;
+    us_lessons: number;
+    us_learn_lessons: number;
 }

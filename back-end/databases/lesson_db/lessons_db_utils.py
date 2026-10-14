@@ -111,7 +111,7 @@ async def get_popular_lessons(
 ) -> Optional[list]:
     async with async_session() as session:
         query = (
-            select(Lesson, User.user_name)
+            select(Lesson, User.user_name, User.is_teacher)
             .join(User, Lesson.author_id == User.id)
             .where(Lesson.status == "ACTIVE")
             .order_by(Lesson.likes.desc())
@@ -124,10 +124,11 @@ async def get_popular_lessons(
         result = await session.execute(query)
         
         popular_lessons = []
-        for lesson, author_name in result.all():
+        for lesson, author_name, is_teacher in result.all():
             popular_lessons.append({
                 "lesson": lesson, 
-                "author": author_name
+                "author": author_name,
+                "is_teacher": is_teacher
             })
             
         return popular_lessons
@@ -138,7 +139,7 @@ async def get_new_lessons(
 ) -> Optional[list]:
     async with async_session() as session:
         query = (
-            select(Lesson, User.user_name)
+            select(Lesson, User.user_name, User.is_teacher)
             .join(User, Lesson.author_id == User.id)
             .where(Lesson.status == "ACTIVE")
             .order_by(Lesson.created_at.desc())
@@ -151,10 +152,11 @@ async def get_new_lessons(
         result = await session.execute(query)
         
         new_lessons = []
-        for lesson, author_name in result.all():
+        for lesson, author_name, is_teacher in result.all():
             new_lessons.append({
                 "lesson": lesson, 
-                "author": author_name
+                "author": author_name,
+                "is_teacher": is_teacher
             })
             
         return new_lessons
@@ -420,7 +422,7 @@ async def search_lessons(
         total = total_result.scalar() or 0
 
         query = (
-            select(Lesson, User.user_name)
+            select(Lesson, User.user_name, User.is_teacher)
             .join(User, Lesson.author_id == User.id)
             .where(Lesson.status == "ACTIVE")
         )
@@ -440,11 +442,12 @@ async def search_lessons(
         result = await session.execute(query)
 
         lessons_data = []
-        for lesson, user_name in result.all():
+        for lesson, user_name, is_teacher in result.all():
             lesson_dict = {
                 c.name: getattr(lesson, c.name) for c in lesson.__table__.columns
             }
             lesson_dict["author"] = user_name
+            lesson_dict["author_is_teacher"] = is_teacher
             lesson_dict["sheet_counts"] = lesson.sheet_counts
             lessons_data.append(lesson_dict)
 

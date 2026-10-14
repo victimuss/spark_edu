@@ -18,6 +18,7 @@ export interface User {
   site: string;
   telegram: string;
   avatar: string;
+  is_teacher?: boolean;
 }
 
 interface AuthContextType {
@@ -27,7 +28,7 @@ interface AuthContextType {
   registerWithCrypto: () => Promise<string>;
   logout: () => Promise<void>;
   refreshToken: () => Promise<void>;
-  edit: (user_name: string, description: string, tag: string, site: string, telegram: string, avatar: string) => void;
+  edit: (user_name: string, description: string, tag: string, site: string, telegram: string, avatar: string, is_teacher?: boolean) => void;
   isLoading: boolean;
 }
 
@@ -54,17 +55,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const edit = (user_name: string, description: string, tag: string, site: string, telegram: string, avatar: string) => {
-    setUser(prev => prev ? { ...prev, name: user_name, description, tag, site, telegram, avatar } : null);
+  const edit = (user_name: string, description: string, tag: string, site: string, telegram: string, avatar: string, is_teacher?: boolean) => {
+    setUser(prev => prev ? { ...prev, name: user_name, description, tag, site, telegram, avatar, is_teacher: is_teacher !== undefined ? is_teacher : prev.is_teacher } : null);
   };
 
   const saveSession = async (res: AuthResponse) => {
     setAccessToken(res.access_token);
-    setUser({
+    const userData: User = {
       name: res.user.user_name, description: res.user.description, tag: res.user.tag,
       us_likes: res.us_likes, us_lessons: res.us_lessons, us_learn_lessons: res.us_learn_lessons,
-      site: res.user.site, telegram: res.user.telegram, avatar: res.user.avatar
-    });
+      site: res.user.site, telegram: res.user.telegram, avatar: res.user.avatar,
+      is_teacher: Boolean(res.user.is_teacher)
+    };
+    setUser(userData);
+    await AsyncStorage.setItem("user", JSON.stringify(userData));
     await AsyncStorage.setItem("access_token", res.access_token);
     if (res.refresh_token) await AsyncStorage.setItem("refresh_token", res.refresh_token);
     setIsLoading(false);
@@ -102,6 +106,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setAccessToken(null);
     setUser(null);
     TotalclearStore();
+    await AsyncStorage.removeItem("user");
     await AsyncStorage.removeItem("access_token");
     await AsyncStorage.removeItem("refresh_token");
     setIsLoading(false);
@@ -109,6 +114,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const refreshToken = async () => {
     try {
+      const savedUser = await AsyncStorage.getItem("user");
+      if (savedUser) {
+        try {
+          setUser(JSON.parse(savedUser));
+        } catch {}
+      }
+
       const savedRefresh = await AsyncStorage.getItem("refresh_token");
       if (!savedRefresh) {
         setIsLoading(false);

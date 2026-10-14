@@ -31,6 +31,8 @@ import { VoiceInputScreen } from './src/screens/AI/VoiceInputScreen';
 import LoginScreen from './src/screens/auth/CryptoAuthScreen';
 import { RegisScreen as RegistrationScreen } from './src/screens/auth/RegisScreen';
 import { LegalScreen } from './src/screens/auth/LegalScreen';
+import { SearchScreen } from './src/screens/auth/main/SearchScreen';
+import TrainSessionScreen from './src/features/train/screens/TrainSessionScreen';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 const RootStack = createNativeStackNavigator();
@@ -48,6 +50,8 @@ const MainApp = () => {
           {user ? (
             <>
               <RootStack.Screen name="MainTabs" component={TabNavigator} />
+              <RootStack.Screen name="Search" component={SearchScreen} />
+              <RootStack.Screen name="TrainSessionScreen" component={TrainSessionScreen} />
               <RootStack.Screen name="NewLessonScreen" component={NewLessonScreen} />
               <RootStack.Screen name="NewSheetScreen" component={NewSheetScreen} />
               <RootStack.Screen name="LessonMainScreen" component={LessonMainScreen} />

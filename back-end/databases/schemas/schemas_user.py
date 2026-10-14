@@ -9,6 +9,7 @@ class UserCreate(BaseModel):
     user_name: str
     email: EmailStr
     password: str
+    is_teacher: Optional[bool] = False
 
 
 # --- Схема для логина ---
@@ -35,12 +36,18 @@ class UserLessonOut(BaseModel):
 
 # --- Схема для вывода пользователя с уроками ---
 class UserOut(BaseModel):
+    id: Optional[int] = None
     user_name: str
-    description: Optional[str]
-    tag: Optional[str]
-    created_at: datetime
-    updated_at: datetime
-    is_active: bool
+    email: Optional[EmailStr] = None
+    description: Optional[str] = None
+    tag: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    is_active: bool = True
+    is_teacher: bool = False
+    avatar: Optional[str] = None
+    site: Optional[str] = None
+    telegram: Optional[str] = None
 
     class Config:
         orm_mode = True
@@ -69,9 +76,11 @@ class NewSkill(BaseModel):
     level: str
 
 class UserEdit(BaseModel):
-    user_name: Optional[str]
-    description: Optional[str]
-    tag: Optional[str]
-    site: Optional[str]
-    telegram: Optional[str]
-    avatar: Optional[str]
+    user_name: Optional[str] = None
+    description: Optional[str] = None
+    tag: Optional[str] = None
+    site: Optional[str] = None
+    telegram: Optional[str] = None
+    avatar: Optional[str] = None
+    is_teacher: Optional[bool] = None
+

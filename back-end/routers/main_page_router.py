@@ -71,5 +71,6 @@ async def current_progress(user_id: int):
 async def get_author(author_id: int):
     async with async_session() as session:
         result = await session.execute(select(User).where(User.id == author_id))
-        author = result.scalar_one_or_none()
-        return {"author": author.user_name}
+        if not author:
+            raise HTTPException(status_code=404, detail="Author not found")
+        return {"author": author.user_name, "is_teacher": author.is_teacher}

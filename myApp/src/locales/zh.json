@@ -360,6 +360,7 @@
   "navigation": {
     "tabs": {
       "home": "首页",
+      "train": "训练",
       "search": "搜索",
       "myLessons": "课程",
       "profile": "个人资料"
