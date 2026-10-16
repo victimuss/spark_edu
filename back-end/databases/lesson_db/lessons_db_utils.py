@@ -657,6 +657,10 @@ async def checker(lesson_id: int, max_retries: int = 3):
             
     return {"status": False, "reason": "Error after all retries"}
 async def media_checker(image_data: bytes, image_type: str):
+    if MODERATION_BYPASS:
+        logger.warning("Media moderation bypass allowed image upload")
+        return json.dumps({"safe": True, "reason": "Moderation bypass enabled"})
+
     base64_image = base64.b64encode(image_data).decode('utf-8')
 
     try:
