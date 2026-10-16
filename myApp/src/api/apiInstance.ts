@@ -8,8 +8,9 @@ const LOCAL_HOST = Platform.OS === "android" ? "10.0.2.2" : "localhost";
 export const LOCAL_API_URL = `http://${LOCAL_HOST}:8000`;
 export const PROD_API_URL = "https://api.spark-edu.ru";
 
-// Подключаем локальный бэкенд
-export const API_BASE_URL = LOCAL_API_URL;
+// Релизный APK должен обращаться к публичному API. Адрес 10.0.2.2 доступен
+// только Android-эмулятору и не работает на физических устройствах.
+export const API_BASE_URL = PROD_API_URL;
 
 const apiInstance: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,

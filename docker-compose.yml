@@ -114,7 +114,10 @@ services:
     build: ./back-end
     container_name: spark_beat
     restart: always
-    command: celery -A core.celery_app beat --loglevel=info
+    # Код смонтирован с хоста и доступен контейнеру только для чтения от
+    # непривилегированного пользователя. Храним служебное расписание Celery
+    # в доступной для записи временной директории контейнера.
+    command: celery -A core.celery_app beat --loglevel=info --schedule=/tmp/celerybeat-schedule
     volumes:
       - ./back-end:/app
     env_file: ./back-end/.env
