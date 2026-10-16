@@ -27,6 +27,10 @@ async def request_challenge(
     if not public_key:
         raise HTTPException(status_code=400, detail="Нужен public_key")
 
+    result = await db.execute(select(User).where(User.public_key == public_key))
+    if result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=403, detail="Регистрация по ZKP отключена")
+
     nonce = str(uuid.uuid4())
     redis_key = f"auth:nonce:pk:{public_key}"
     await redis.setex(redis_key, 60, nonce)
@@ -59,20 +63,10 @@ async def verify_challenge(
     current_user = result.scalar_one_or_none()
 
     if not current_user:
-        # Создаем нового пользователя
-        current_user = User(
-            public_key=data.public_key,
-            user_name=f"pilot-{data.public_key[2:8]}",
-            email=f"pilot-{data.public_key[2:8]}@pilot.com",
-            tag=f"@{uuid.uuid4().hex[:6]}",
-            hashed_password=""
-        )
-        db.add(current_user)
-        await db.commit()
-        await db.refresh(current_user)
-        logger.info(f"New user {current_user.id} registered via ZKP")
-    else:
-        logger.info(f"User {current_user.id} logged in via ZKP")
+        await redis.delete(redis_key)
+        raise HTTPException(status_code=403, detail="Регистрация по ZKP отключена")
+
+    logger.info(f"User {current_user.id} logged in via ZKP")
 
     await redis.delete(redis_key)
 
