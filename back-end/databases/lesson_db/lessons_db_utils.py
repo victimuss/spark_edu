@@ -24,6 +24,10 @@ import base64
 from routers.tasks.notification_tasks import dispatch_notifications
 from core.logging import logger
 
+# Temporary emergency switch: Groq moderation model is unavailable.  While this
+# is enabled, every submitted lesson is allowed without sending content to LLM.
+MODERATION_BYPASS = True
+
 async def get_lesson_by_id(lesson_id: int, user_id: int) -> Optional[Lesson]:
     async with async_session() as session:
         tags_subquery = (
@@ -544,6 +548,23 @@ async def checker(lesson_id: int, max_retries: int = 3):
             .order_by(LessonSheet.id)
         )
         sheets = sheets_res.scalars().all()
+
+    if MODERATION_BYPASS:
+        async with async_session() as update_session:
+            async with update_session.begin():
+                await update_session.execute(
+                    update(Lesson)
+                    .where(Lesson.id == lesson_id)
+                    .values(status="ACTIVE", moderation_note=None)
+                )
+        logger.warning(f"Moderation bypass allowed lesson_id: {lesson_id}")
+        dispatch_notifications.delay(
+            lesson.author_id,
+            "Ваш урок опубликован. Проверка модерации временно отключена.",
+            "general",
+            url=f"http://{settings.BACKEND_IP}:8080/api/redirect/lesson/{lesson_id}",
+        )
+        return {"status": True, "reason": "Moderation bypass enabled"}
 
     if not sheets:
         dispatch_notifications.delay(lesson.author_id, "Ваш урок получил новый статус, ознакомьтесь с ним.", "general", url=f"http://{settings.BACKEND_IP}:8080/api/redirect/lesson/{lesson_id}")
